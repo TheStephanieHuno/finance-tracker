@@ -18,5 +18,5 @@ class Users(SQLModel, table=True):
     transactions: ClassVar = relationship("Transactions", back_populates="user")
     budgets: ClassVar = relationship("Budgets", back_populates="user")
 
-    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow)
-    created_at: datetime = Field(default_factory=lambda: datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

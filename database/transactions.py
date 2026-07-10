@@ -20,5 +20,5 @@ class Transactions(SQLModel, table=True):
     user: ClassVar = relationship("Users", back_populates="transactions")
 
 
-    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow)
-    created_at: datetime = Field(default_factory=lambda: datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
