@@ -1,0 +1,29 @@
+## Tables
+1. Users
+   - id
+   - first_name
+   - last_name
+   - email
+   - password
+   - profile_url
+   - updated_at
+   - created_at
+2. Transactions
+    - id
+    - amount
+    - date
+    - recipient
+    - category
+    - notes
+    - status
+    - updated_at
+    - created_at
+3. Budgets
+   - id
+   - name
+   - current_amount
+   - target_amount
+   - status
+   - budget_period
+   - updated_at
+   - created_at
