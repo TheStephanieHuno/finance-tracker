@@ -14,7 +14,7 @@ class RegisterUserResponseDto(BaseModel):
     email: str
 
 class LoginUserRequestDto(BaseModel):
-    username_or_email:str
+    email:str
     password:str
 
     

@@ -75,7 +75,7 @@ async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
 
         # Search for a user whose email OR username matches
         stmt = select(Users).where(
-                Users.email == login_dto.username_or_email,
+                Users.email == login_dto.email,
             
         )
 
@@ -86,7 +86,7 @@ async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
         if user is None:
             return {
                 "code": 401,
-                "message": "Invalid username/email or password.",
+                "message": "Invalid email or password.",
                 "data": None
             }
 
@@ -94,7 +94,7 @@ async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
         if not password_hash.verify(login_dto.password, user.password):
             return {
                 "code": 401,
-                "message": "Invalid username/email or password.",
+                "message": "Invalid email or password.",
                 "data": None
             }
 
