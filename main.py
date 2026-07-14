@@ -8,14 +8,68 @@ from dtos.transaction_dto import AddTransactions, AddTransactionResponse
 from storage.dependencies import get_database
 from pwdlib import PasswordHash
 import uuid
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime,timedelta
+import jwt
+from fastapi import HTTPException
+from fastapi import UploadFile, File
+import os
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 password_hash = PasswordHash.recommended()
+
+SECRET_KEY = "mysecretkey"
+ALGORITHM = "HS256"
+
+#helper function
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+
+    expire = datetime.utcnow() + timedelta(minutes=30)
+
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+   
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        user_id = payload.get("sub")
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+
+        return user_id
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )   
 
 app = FastAPI()
 
 
 @app.get("/")
-async def get_user(db = Depends(get_database)):
+async def get_user(token: str = Depends(oauth2_scheme),db = Depends(get_database)):
 
     # query statement
     stmt = select(Users).where(Users.id.in_(["3d74d0b33b7e44f2a10aab7474d6bf97"]))
@@ -53,7 +107,7 @@ async def create_user(user_dto: RegisterUserRequestDto, db = Depends(get_databas
 
 
 @app.get("/users/{id}")
-async def get_user_by_id(id: str, db = Depends(get_database)):
+async def get_user_by_id(id: str,current_user=Depends(get_current_user), db = Depends(get_database)):
     try:
         # query statement
         stmt = select(Users).where(Users.id == id)
@@ -69,13 +123,17 @@ async def get_user_by_id(id: str, db = Depends(get_database)):
         return {"code": 500, "message": "Something went wrong.", "data": None}
     
 @app.post("/login")
-async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
+async def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+     db=Depends(get_database)
+     ):
+    
     try:
         print("User is attempting to log in...")
 
         # Search for a user whose email OR username matches
         stmt = select(Users).where(
-                Users.email == login_dto.email,
+                Users.email == form_data.username,
             
         )
 
@@ -91,7 +149,7 @@ async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
             }
 
         # Verifying the entered password against the stored hashed password
-        if not password_hash.verify(login_dto.password, user.password):
+        if not password_hash.verify(form_data.password, user.password):
             return {
                 "code": 401,
                 "message": "Invalid email or password.",
@@ -99,11 +157,17 @@ async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
             }
 
         # Login successful
+        token = create_access_token(
+    {"sub": str(user.id)}
+)
+
         return {
             "code": 200,
             "message": "Login successful.",
             "data": {
                 "id": str(user.id),
+                "access_token": token,
+                "token_type": "bearer",
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email
@@ -118,10 +182,14 @@ async def login_user(login_dto: LoginUserRequestDto, db=Depends(get_database)):
             "data": None
         }
     
+@app.get("/profile")
+async def profile(current_user = Depends(get_current_user)):
+    return{"current_user": current_user}
+
 
     # Transactions Endpoints 
 @app.post("/users/{user_id}/transactions")
-async def add_transaction(user_id:str, transaction_dto: AddTransactions, db = Depends(get_database)):
+async def add_transaction(user_id:str,transaction_dto: AddTransactions, current_user=Depends(get_current_user), db = Depends(get_database)):
     try:
         print("Frontend sent transaction data...", transaction_dto)
 
@@ -149,7 +217,7 @@ async def add_transaction(user_id:str, transaction_dto: AddTransactions, db = De
     
 
 @app.get("/transactions/{transaction_id}")
-async def get_transaction_by_id(transaction_id: str, db=Depends(get_database)):
+async def get_transaction_by_id(transaction_id: str,current_user=Depends(get_current_user), db=Depends(get_database)):
     try:
         stmt = select(Transactions).where(
             Transactions.id == uuid.UUID(transaction_id)
@@ -184,6 +252,7 @@ async def get_transaction_by_id(transaction_id: str, db=Depends(get_database)):
 async def update_transaction(
     transaction_id: str,
     transaction_dto: AddTransactions,
+    current_user=Depends(get_current_user),
     db=Depends(get_database)
 ):
     try:
@@ -225,4 +294,27 @@ async def update_transaction(
             "message": "Something went wrong.",
             "data": None
         }
+@app.post("/users/{user_id}/upload-profile")
+async def upload_profile_picture(
+    user_id: str,
+    file: UploadFile = File(...),
+    db=Depends(get_database)
+):
+    # Create the uploads folder if it doesn't exist
+    os.makedirs("uploads", exist_ok=True)
+
+    # Create a unique filename
+    filename = f"{user_id}_{file.filename}"
+
+    # Save the file
+    filepath = os.path.join("uploads", filename)
+
+    with open(filepath, "wb") as buffer:
+        buffer.write(await file.read())
+
+    return {
+        "message": "Profile picture uploaded successfully",
+        "filename": filename
+    }
+
     
