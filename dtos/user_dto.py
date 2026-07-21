@@ -17,4 +17,7 @@ class LoginUserRequestDto(BaseModel):
     email:str
     password:str
 
-    
+class UpdateUserDto(BaseModel):
+    first_name: str | None = None
+    last_name:  str | None = None
+    email:  str | None = None
