@@ -11,7 +11,7 @@ from database import Users, Transactions, Budgets, SQLModel
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option("sqlalchemy.url", "postgresql+psycopg://postgres:postgres@localhost:5432/finance_tracker")
+config.set_main_option("sqlalchemy.url", "postgresql+psycopg://postgres:postgre@localhost:5433/finance_tracker")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
