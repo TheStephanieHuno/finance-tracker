@@ -7,11 +7,16 @@ from alembic import context
 
 from database import Users, Transactions, Budgets, SQLModel
 
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+sqlalchemy_database_uri = os.getenv("DATABASE_URL")
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option("sqlalchemy.url", "postgresql+psycopg://postgres:postgre@localhost:5433/finance_tracker")
+config.set_main_option("sqlalchemy.url", sqlalchemy_database_uri)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
