@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Depends
-from sqlalchemy import select
-
+from sqlalchemy import select , text
 from database import Users
 from database import Transactions
 from database import Budgets
@@ -11,7 +10,7 @@ from storage.dependencies import get_database
 from pwdlib import PasswordHash
 import uuid
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone
 import jwt
 from fastapi import HTTPException
 from fastapi import UploadFile, File
@@ -26,6 +25,8 @@ password_hash = PasswordHash.recommended()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
+
+
 
 #helper function
 
@@ -81,6 +82,39 @@ def get_current_user(
         )  
 
 app = FastAPI()
+
+# health check endpoint 
+@app.get("/health")
+async def health(db=Depends(get_database)):
+    try:
+        # Check database connection
+        await db.execute(text("SELECT 1"))
+
+        return {
+            "code": 200,
+            "message": "Finance Tracker API is healthy.",
+            "data": {
+                "status": "healthy",
+                "service": "Finance Tracker API",
+                "version": "1.0.0",
+                "database": "connected",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        }
+
+    except Exception as e:
+        return {
+            "code": 503,
+            "message": "Finance Tracker API is unhealthy.",
+            "data": {
+                "status": "unhealthy",
+                "service": "Finance Tracker API",
+                "version": "1.0.0",
+                "database": "disconnected",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "error": str(e)
+            }
+        }
 
 # user endpoints
 # get all users by id
