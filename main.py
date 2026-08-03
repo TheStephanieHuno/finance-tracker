@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from fastapi import UploadFile, File
 import os
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -82,6 +83,15 @@ def get_current_user(
         )  
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # health check endpoint 
 @app.get("/health")
@@ -156,22 +166,22 @@ async def create_user(user_dto: RegisterUserRequestDto, db = Depends(get_databas
         return {"code": 500, "message": "Something went wrong.", "data": None}
 
 
-# getting user by id 
-@app.get("/users/{user.id}")
-async def get_user_by_id(id: str,current_user=Depends(get_current_user), db = Depends(get_database)):
-    try:
-        # query statement
-        stmt = select(Users).where(Users.id == id)
+# # getting user by id 
+# @app.get("/users/{user.id}")
+# async def get_user_by_id(id: str,current_user=Depends(get_current_user), db = Depends(get_database)):
+#     try:
+#         # query statement
+#         stmt = select(Users).where(Users.id == id)
 
-        # execute query
-        user = await db.scalar(stmt)
+#         # execute query
+#         user = await db.scalar(stmt)
 
-        user_response = RegisterUserResponseDto(id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name)
+#         user_response = RegisterUserResponseDto(id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name)
 
-        return {"code": 200, "message": "User fetched successfully", "data": user_response}
-    except Exception as e:
-        print(e)
-        return {"code": 500, "message": "Something went wrong.", "data": None}
+#         return {"code": 200, "message": "User fetched successfully", "data": user_response}
+#     except Exception as e:
+#         print(e)
+#         return {"code": 500, "message": "Something went wrong.", "data": None}
     
 
 # the user is updating /editing his or her details 
