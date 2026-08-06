@@ -17,7 +17,8 @@ from fastapi import UploadFile, File
 import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.staticfiles import StaticFiles
+from fastapi import Request
 load_dotenv()
 
 
@@ -83,6 +84,7 @@ def get_current_user(
         )  
 
 app = FastAPI()
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -168,23 +170,6 @@ async def create_user(user_dto: RegisterUserRequestDto, db = Depends(get_databas
         print(e)
         return {"code": 500, "message": "Something went wrong.", "data": None}
 
-
-# # getting user by id 
-# @app.get("/users/{user.id}")
-# async def get_user_by_id(id: str,current_user=Depends(get_current_user), db = Depends(get_database)):
-#     try:
-#         # query statement
-#         stmt = select(Users).where(Users.id == id)
-
-#         # execute query
-#         user = await db.scalar(stmt)
-
-#         user_response = RegisterUserResponseDto(id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name)
-
-#         return {"code": 200, "message": "User fetched successfully", "data": user_response}
-#     except Exception as e:
-#         print(e)
-#         return {"code": 500, "message": "Something went wrong.", "data": None}
     
 
 # the user is updating /editing his or her details 
@@ -547,29 +532,45 @@ async def delete_transaction(
 
 
 # upload profile picture     
+
 @app.post("/users/{user_id}/upload-profile")
 async def upload_profile_picture(
     user_id: str,
+    request: Request,
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
     db=Depends(get_database)
 ):
-    # Create the uploads folder if it doesn't exist
     os.makedirs("uploads", exist_ok=True)
-
-    # Create a unique filename
     filename = f"{user_id}_{file.filename}"
-
-    # Save the file
     filepath = os.path.join("uploads", filename)
 
     with open(filepath, "wb") as buffer:
         buffer.write(await file.read())
 
-    return {
-        "message": "Profile picture uploaded successfully",
-        "filename": filename
-    }
+    result = await db.execute(select(Users).where(Users.id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
 
+    if user is None:
+        raise HTTPException(status_code=404, detail={"code": 404, "message": "User not found", "data": None})
+
+    # Build the FULL public URL, not just the relative path
+    base_url = str(request.base_url).rstrip("/")
+    user.profile_url = f"{base_url}/uploads/{filename}"
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "code": 200,
+        "message": "Profile picture uploaded successfully",
+        "user": {
+            "id": str(user.id),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "profile_url": user.profile_url
+        }
+    }
 
 # budgets endpoints
 # addbudget
